@@ -194,9 +194,11 @@ document.addEventListener('DOMContentLoaded', () => {
         staticCanvas.height = canvas.height;
         sCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
-        const isDark = document.documentElement.classList.contains('dark');
-        const edgeColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.06)';
-        const nodeColor = isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.3)';
+const isDark = document.documentElement.classList.contains('dark');
+        
+        // Increased the opacity for the light mode colors (the second value in the rgba)
+        const edgeColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'; // bumped from 0.06 to 0.15
+        const nodeColor = isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)';  // bumped from 0.3 to 0.6
 
         // Draw edges to static canvas
         sCtx.strokeStyle = edgeColor;
@@ -248,7 +250,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const now = Date.now();
                 if (dist < 15 && (!n.lastTriggered || now - n.lastTriggered > 3000)) {
                     n.lastTriggered = now;
-                    const color = '#ff7b00';
+                    // const color = '#ff7b00';
+                    const color = "225, 171, 32"; // The RGB exact match for #E1AB20
                     triggerSignals(n, color, 1.0);
                 }
             }
@@ -338,16 +341,32 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.moveTo(s.edge.from.x, s.edge.from.y);
             ctx.lineTo(currentX, currentY);
             
-            ctx.strokeStyle = `rgba(255, 123, 0, ${s.alpha * 0.3})`;
+            ctx.strokeStyle = `rgba(${s.color}, ${s.alpha * 0.3})`;
             ctx.lineWidth = (2 * s.power) + 4;
             ctx.stroke();
-            
-            ctx.strokeStyle = `rgba(255, 123, 0, ${s.alpha})`;
+
+            ctx.strokeStyle = `rgba(${s.color}, ${s.alpha})`;
             ctx.lineWidth = 2 * s.power;
             ctx.stroke();
         }
     }
+
+// --- NEW CODE: Theme Toggle Watcher ---
+    // Watch for Dark/Light mode toggles and redraw the static canvas
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            // Check if the class or data-theme attribute changed on the HTML tag
+            if (mutation.attributeName === 'class' || mutation.attributeName === 'data-theme') {
+                // Redraw the static background with the new light/dark colors
+                buildStaticCanvas(); 
+            }
+        });
+    });
     
+    // Start observing the <html> tag for attribute changes
+    observer.observe(document.documentElement, { attributes: true });
+    // --------------------------------------
+
     // Start animation loop
     requestAnimationFrame(draw);
 });
