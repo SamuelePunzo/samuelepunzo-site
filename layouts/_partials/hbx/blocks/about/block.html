@@ -8,7 +8,7 @@
 {{ $profile := partial "functions/get_author_profile" $author }}
 
 <div id="about-container" class="resume-biography pb-8 px-4 sm:pb-12 md:pb-16 lg:pb-24 relative" style="margin-top: -120px;">
-  <canvas id="nn-canvas" class="absolute inset-0 w-full h-full" style="z-index: 0; pointer-events: auto;"></canvas>
+  <canvas id="nn-canvas" class="absolute inset-0 w-full h-full hidden md:block" style="z-index: 0; pointer-events: auto;"></canvas>
   <div class="max-w-7xl mx-auto relative z-10" style="pointer-events: none; padding-top: 140px;">
     <div class="grid grid-cols-1 md:grid-cols-12 gap-8 items-start" style="pointer-events: auto;">
       
@@ -130,6 +130,9 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    // Only run the neural network on non-mobile screens (md breakpoint = 768px)
+    if (window.innerWidth < 768) return;
+
     const canvas = document.getElementById('nn-canvas');
     const container = document.getElementById('about-container');
     if (!canvas || !container) return;
@@ -264,36 +267,76 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Animation Loop
-    function draw() {
-        ctx.clearRect(0, 0, width, height);
+    // Offscreen canvas for the static network (drawn once, reused every frame)
+    let staticCanvas = document.createElement('canvas');
+    let sCtx = staticCanvas.getContext('2d');
+
+    function buildStaticCanvas() {
+        staticCanvas.width = canvas.width;
+        staticCanvas.height = canvas.height;
+        sCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
         const isDark = document.documentElement.classList.contains('dark');
-        // Reduced edge opacity since fully connected graphs are incredibly dense visually
         const edgeColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.06)';
         const nodeColor = isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.3)';
 
-        // Draw edges
-        ctx.strokeStyle = edgeColor;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
+        // Draw all edges in one path
+        sCtx.strokeStyle = edgeColor;
+        sCtx.lineWidth = 1;
+        sCtx.beginPath();
         for (let edge of edges) {
-            ctx.moveTo(edge.from.x, edge.from.y);
-            ctx.lineTo(edge.to.x, edge.to.y);
+            sCtx.moveTo(edge.from.x, edge.from.y);
+            sCtx.lineTo(edge.to.x, edge.to.y);
         }
-        ctx.stroke();
+        sCtx.stroke();
 
-        // Draw nodes
-        ctx.fillStyle = nodeColor;
+        // Draw all nodes
+        sCtx.fillStyle = nodeColor;
         for (let l = 0; l < nodes.length; l++) {
             for (let n of nodes[l]) {
-                ctx.beginPath();
-                ctx.arc(n.x, n.y, 2, 0, Math.PI * 2);
-                ctx.fill();
+                sCtx.beginPath();
+                sCtx.arc(n.x, n.y, 2, 0, Math.PI * 2);
+                sCtx.fill();
             }
         }
+    }
 
-        // Draw signals
+    // Rebuild static canvas whenever the network is reinitialised
+    const _origInitNetwork = initNetwork;
+    function initNetworkAndCache() {
+        _origInitNetwork();
+        buildStaticCanvas();
+    }
+    window.removeEventListener('resize', resize);
+    function resize() {
+        width = container.offsetWidth;
+        height = container.offsetHeight;
+        canvas.width = width * window.devicePixelRatio;
+        canvas.height = height * window.devicePixelRatio;
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        initNetwork();
+        buildStaticCanvas();
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Animation Loop — capped at 30fps to halve GPU load
+    const TARGET_FPS = 30;
+    const FRAME_INTERVAL = 1000 / TARGET_FPS;
+    let lastFrameTime = 0;
+
+    function draw(timestamp) {
+        requestAnimationFrame(draw);
+
+        // Skip frame if not enough time has passed (30fps cap)
+        if (timestamp - lastFrameTime < FRAME_INTERVAL) return;
+        lastFrameTime = timestamp;
+
+        // Stamp the static background (cheap blit, no re-draw)
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(staticCanvas, 0, 0);
+
+        // Draw active signals
         for (let i = signals.length - 1; i >= 0; i--) {
             let s = signals[i];
             
@@ -302,11 +345,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (s.progress >= 1) {
                     s.progress = 1;
                     s.fading = true;
-                    // Signal reached destination -> trigger next layer
-                    triggerSignals(s.edge.to, s.color, s.power - 0.2); // Decay power
+                    triggerSignals(s.edge.to, s.color, s.power - 0.2);
                 }
             } else {
-                s.alpha -= 0.07; // Fade out slowly
+                s.alpha -= 0.07;
                 if (s.alpha <= 0) {
                     signals.splice(i, 1);
                     continue;
@@ -316,22 +358,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentX = s.edge.from.x + (s.edge.to.x - s.edge.from.x) * s.progress;
             const currentY = s.edge.from.y + (s.edge.to.y - s.edge.from.y) * s.progress;
 
-            // Draw continuous growing line from start to current position
+            // Cheap double-stroke glow (no shadowBlur)
             ctx.beginPath();
             ctx.moveTo(s.edge.from.x, s.edge.from.y);
             ctx.lineTo(currentX, currentY);
-            
-            // Apply fading alpha to the neon color
+            // Wide, faint outer glow stroke
+            ctx.strokeStyle = `rgba(255, 123, 0, ${s.alpha * 0.3})`;
+            ctx.lineWidth = (2 * s.power) + 4;
+            ctx.stroke();
+            // Crisp inner stroke
             ctx.strokeStyle = `rgba(255, 123, 0, ${s.alpha})`;
             ctx.lineWidth = 2 * s.power;
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = `rgba(255, 123, 0, ${s.alpha})`;
             ctx.stroke();
-            ctx.shadowBlur = 0; // reset
         }
-
-        requestAnimationFrame(draw);
     }
-    draw();
+    requestAnimationFrame(draw);
 });
 </script>
