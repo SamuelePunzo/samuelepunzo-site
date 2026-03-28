@@ -1,0 +1,36 @@
+/* Custom styles for Samuele Punzo's portfolio */
+
+/* Uniformly increase base font size by 1pt (represented as 17px instead of 16px default) */
+html {
+  font-size: 17px !important;
+}
+
+/* Wider content area for research section to be exactly 70% width */
+.wide-content {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (min-width: 768px) {
+  .wide-content {
+    width: 80% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .wide-content {
+    width: 70% !important;
+  }
+}
+
+.wide-content > div,
+.wide-content .hb-section-heading-group,
+.wide-content .prose {
+  max-width: 100% !important;
+}

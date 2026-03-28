@@ -1,0 +1,337 @@
+{{/* Custom Classic About Widget */}}
+{{ $page := .wcPage }}
+{{ $block := .wcBlock }}
+{{ $content := $block.content }}
+{{ $design := $block.design }}
+
+{{ $author := index $content "username" | default "me" }}
+{{ $profile := partial "functions/get_author_profile" $author }}
+
+<div id="about-container" class="resume-biography pb-8 px-4 sm:pb-12 md:pb-16 lg:pb-24 relative" style="margin-top: -120px;">
+  <canvas id="nn-canvas" class="absolute inset-0 w-full h-full" style="z-index: 0; pointer-events: auto;"></canvas>
+  <div class="max-w-7xl mx-auto relative z-10" style="pointer-events: none; padding-top: 140px;">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-8 items-start" style="pointer-events: auto;">
+      
+      {{/* Left Column */}}
+      <div class="md:col-span-4 flex flex-col items-center text-center space-y-4 pt-4 sm:pt-8 md:pt-10 lg:pt-12">
+        {{/* Name */}}
+        <h1 class="text-4xl sm:text-5xl font-normal text-gray-900 dark:text-white mb-2">
+          {{ $profile.title }}
+        </h1>
+        
+        {{/* Role */}}
+        {{ with $profile.role }}
+          <div class="text-xl text-gray-600 dark:text-gray-400 font-light mb-1">{{ . | markdownify }}</div>
+        {{ end }}
+        
+        {{/* Affiliations */}}
+        {{ range $profile.affiliations }}
+          <div class="text-lg text-primary-600 dark:text-primary-400 mb-4">
+            {{ if .url }}
+              <a href="{{ .url }}" target="_blank" rel="noopener" class="hover:underline">{{ .name | default .title }}</a>
+            {{ else }}
+              {{ .name | default .title }}
+            {{ end }}
+          </div>
+        {{ end }}
+        
+        {{/* Social Links */}}
+        {{ if gt (len $profile.links) 0 }}
+        <div class="flex flex-wrap justify-center gap-4 mt-6">
+          {{ range $profile.links }}
+            {{ $url := .url | default .link }}
+            <a href="{{ $url }}" target="_blank" rel="noopener" aria-label="{{ .label | default .icon }}" class="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors">
+              {{ partial "functions/get_icon" (dict "name" .icon "attributes" "class='w-6 h-6'") }}
+            </a>
+          {{ end }}
+        </div>
+        {{ end }}
+
+        {{/* Action Button */}}
+        {{ $button := index $content "button" }}
+        {{ if and $button (reflect.IsMap $button) }}
+          {{ $button_text := index $button "text" | default "Download CV" }}
+          {{ $button_url := index $button "url" }}
+          {{ if $button_url }}
+          <div class="mt-8">
+            <a href="{{ $button_url | safeURL }}" target="_blank" rel="noopener" class="inline-flex items-center px-6 py-3 text-base font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg shadow-sm transition-colors">
+              {{ partial "functions/get_icon" (dict "name" "document-arrow-down" "attributes" "class='w-5 h-5'") }}
+              <span class="ml-2">{{ $button_text }}</span>
+            </a>
+          </div>
+          {{ end }}
+        {{ end }}
+      </div>
+
+      {{/* Right Column */}}
+      <div class="md:col-span-8 space-y-8 md:-mt-2 lg:-mt-4">
+        {{/* About Me */}}
+        <div>
+          <h2 class="text-4xl font-normal text-gray-900 dark:text-white mb-6">About me</h2>
+          <div class="prose prose-xl dark:prose-invert text-gray-800 dark:text-gray-200 leading-relaxed max-w-none">
+            {{ with $profile.bio }}{{ . | emojify | $page.RenderString }}{{ end }}
+          </div>
+        </div>
+
+        {{/* Two-column nested grid for Interests and Education (Current Positions) */}}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
+          
+          {{/* Interests */}}
+          {{ $interests := $profile.interests }}
+          {{ if gt (len $interests) 0 }}
+          <div>
+            <h3 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Interests</h3>
+            <ul class="space-y-4 pl-0 list-none">
+              {{ range $interests }}
+              <li class="flex items-start">
+                <div class="flex-shrink-0 mt-1 mr-3 text-gray-500 dark:text-gray-400">
+                  {{ partial "functions/get_icon" (dict "name" "book-open" "attributes" "class='w-5 h-5'") }}
+                </div>
+                <span class="text-gray-700 dark:text-gray-300 text-lg">{{ . | markdownify }}</span>
+              </li>
+              {{ end }}
+            </ul>
+          </div>
+          {{ end }}
+
+          {{/* Education (which we mapped to Current Positions in bio.yaml) */}}
+          {{ $education := $profile.education }}
+          {{ if gt (len $education) 0 }}
+          <div>
+            {{ $education_heading := "Education" }}
+            {{ $headings := index $content "headings" }}
+            {{ if and $headings (reflect.IsMap $headings) }}
+              {{ with index $headings "education" }}{{ $education_heading = . }}{{ end }}
+            {{ end }}
+            <h3 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">{{ $education_heading }}</h3>
+            <ul class="space-y-6 pl-0 list-none">
+              {{ range $education }}
+              <li class="flex items-start">
+                <div class="flex-shrink-0 mt-1 mr-3 text-gray-500 dark:text-gray-400">
+                  {{ partial "functions/get_icon" (dict "name" "academic-cap" "attributes" "class='w-5 h-5'") }}
+                </div>
+                <div>
+                  <div class="font-medium text-gray-900 dark:text-gray-100 text-lg">{{ .degree | default .area }}</div>
+                  <div class="text-base text-gray-600 dark:text-gray-400 mt-1">{{ .institution }}</div>
+                  <div class="text-sm text-gray-500 dark:text-gray-500 mt-1">{{ .year | default .start }}</div>
+                </div>
+              </li>
+              {{ end }}
+            </ul>
+          </div>
+          {{ end }}
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const canvas = document.getElementById('nn-canvas');
+    const container = document.getElementById('about-container');
+    if (!canvas || !container) return;
+    const ctx = canvas.getContext('2d');
+
+    let width, height;
+    function resize() {
+        width = container.offsetWidth;
+        height = container.offsetHeight;
+        canvas.width = width * window.devicePixelRatio;
+        canvas.height = height * window.devicePixelRatio;
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        initNetwork();
+    }
+
+    // Network data
+    let nodes = [];
+    let edges = [];
+    let signals = [];
+
+    const numLayers = 5;
+    const nodesPerLayer = 10;
+
+    function initNetwork() {
+        nodes = [];
+        edges = [];
+        signals = [];
+
+        const layerWidth = width / (numLayers - 1);
+        
+        // Create nodes
+        for (let l = 0; l < numLayers; l++) {
+            let layerNodes = [];
+            for (let i = 0; i < nodesPerLayer; i++) {
+                let basePathX = l * layerWidth;
+                let basePathY = (height / nodesPerLayer) * i + (height / nodesPerLayer) / 2;
+                
+                // Add mild jitter for a highly regular graph structure
+                let jitterX = (Math.random() - 0.5) * (layerWidth * 0.3);
+                let jitterY = (Math.random() - 0.5) * (height / nodesPerLayer * 0.6);
+                
+                layerNodes.push({
+                    x: Math.max(0, Math.min(width, basePathX + jitterX)),
+                    y: Math.max(0, Math.min(height, basePathY + jitterY)),
+                    outgoingEdges: []
+                });
+            }
+            nodes.push(layerNodes);
+        }
+
+        // Create edges (Fully connected graph)
+        for (let l = 0; l < numLayers - 1; l++) {
+            for (let n1 of nodes[l]) {
+                for (let n2 of nodes[l + 1]) {
+                    let edge = { from: n1, to: n2 };
+                    edges.push(edge);
+                    n1.outgoingEdges.push(edge);
+                }
+            }
+        }
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Interaction
+    let mouse = { x: -1000, y: -1000 };
+    container.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = e.clientX - rect.left;
+        mouse.y = e.clientY - rect.top;
+
+        for (let l = 0; l < nodes.length; l++) {
+            for (let n of nodes[l]) {
+                const dist = Math.hypot(n.x - mouse.x, n.y - mouse.y);
+                const now = Date.now();
+                // Extremely highly precise hover strictly requiring direct passing over the core of the specific node.
+                if (dist < 15 && (!n.lastTriggered || now - n.lastTriggered > 3000)) {
+                    n.lastTriggered = now; // Lock node to prevent rapid re-triggering
+                    const color = '#ff7b00';
+                    triggerSignals(n, color, 1.0);
+                }
+            }
+        }
+    });
+
+    function triggerSignals(node, color, power) {
+        if (power <= 0 || node.outgoingEdges.length === 0) return;
+        
+        let shuffledEdges = [...node.outgoingEdges].sort(() => 0.5 - Math.random());
+        
+        let N = shuffledEdges.length;
+        let numToFire;
+
+        if (N <= 1) {
+            numToFire = N;
+        } else {
+            // Compute exponential decay weights for k = 2, 3, ..., N edges
+            // lambda ≈ 0.9 gives p(k=2) ≈ 0.60 for typical layer sizes
+            const lambda = 0.9;
+            let weights = [];
+            for (let k = 2; k <= N; k++) {
+                weights.push(Math.exp(-lambda * (k - 2)));
+            }
+            // Floor: ensure "fire all" always has >= 10% weight of "fire 2"
+            // so full bursts don't vanish for large N
+            weights[weights.length - 1] = Math.max(weights[weights.length - 1], 0.1 * weights[0]);
+
+            // Normalize and sample via CDF
+            let wSum = weights.reduce((a, b) => a + b, 0);
+            let r = Math.random();
+            let cumulative = 0;
+            numToFire = N; // fallback
+            for (let i = 0; i < weights.length; i++) {
+                cumulative += weights[i] / wSum;
+                if (r <= cumulative) { numToFire = i + 2; break; }
+            }
+        }
+
+        let edgesToFire = shuffledEdges.slice(0, numToFire);
+
+        for (let edge of edgesToFire) {
+            signals.push({
+                edge: edge,
+                progress: 0,
+                color: color,
+                power: power,
+                speed: 0.105,
+                fading: false,
+                alpha: 1.0
+            });
+        }
+    }
+
+    // Animation Loop
+    function draw() {
+        ctx.clearRect(0, 0, width, height);
+
+        const isDark = document.documentElement.classList.contains('dark');
+        // Reduced edge opacity since fully connected graphs are incredibly dense visually
+        const edgeColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.06)';
+        const nodeColor = isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.3)';
+
+        // Draw edges
+        ctx.strokeStyle = edgeColor;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let edge of edges) {
+            ctx.moveTo(edge.from.x, edge.from.y);
+            ctx.lineTo(edge.to.x, edge.to.y);
+        }
+        ctx.stroke();
+
+        // Draw nodes
+        ctx.fillStyle = nodeColor;
+        for (let l = 0; l < nodes.length; l++) {
+            for (let n of nodes[l]) {
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Draw signals
+        for (let i = signals.length - 1; i >= 0; i--) {
+            let s = signals[i];
+            
+            if (!s.fading) {
+                s.progress += s.speed;
+                if (s.progress >= 1) {
+                    s.progress = 1;
+                    s.fading = true;
+                    // Signal reached destination -> trigger next layer
+                    triggerSignals(s.edge.to, s.color, s.power - 0.2); // Decay power
+                }
+            } else {
+                s.alpha -= 0.07; // Fade out slowly
+                if (s.alpha <= 0) {
+                    signals.splice(i, 1);
+                    continue;
+                }
+            }
+
+            const currentX = s.edge.from.x + (s.edge.to.x - s.edge.from.x) * s.progress;
+            const currentY = s.edge.from.y + (s.edge.to.y - s.edge.from.y) * s.progress;
+
+            // Draw continuous growing line from start to current position
+            ctx.beginPath();
+            ctx.moveTo(s.edge.from.x, s.edge.from.y);
+            ctx.lineTo(currentX, currentY);
+            
+            // Apply fading alpha to the neon color
+            ctx.strokeStyle = `rgba(255, 123, 0, ${s.alpha})`;
+            ctx.lineWidth = 2 * s.power;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = `rgba(255, 123, 0, ${s.alpha})`;
+            ctx.stroke();
+            ctx.shadowBlur = 0; // reset
+        }
+
+        requestAnimationFrame(draw);
+    }
+    draw();
+});
+</script>

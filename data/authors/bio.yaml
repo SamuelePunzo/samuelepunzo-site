@@ -1,5 +1,5 @@
 schema: hugoblox/author/v1
-slug: me
+slug: bio
 is_owner: true
 name:
   display: Samuele Punzo
@@ -40,21 +40,12 @@ interests:
   - Biomedical Applications
 
 education:
-  - degree: MSc in Artificial Intelligence
-    institution: University of Amsterdam
-    start: 2025-09-01
-    end: 2027-07-31
-    summary: |
-      GPA: 8.6/10 (Excellent, A+ in US/UK scale).
-      Relevant Courses: Machine Learning, Deep Learning, Reinforcement Learning, NLP, Fairness & Accountability for AI, Information Retrieval, Foundation Models.
-  - degree: BSc in Computer Science
-    institution: University of Pisa
-    start: 2021-09-01
-    end: 2024-10-31
-    summary: |
-      Grade: 110/110 with honours | GPA: 29/30.
-      Bachelor Thesis: Research of new biomarkers for Multiple Sclerosis using Machine Learning techniques.
-      Relevant Courses: Machine Learning, Statistics, Numerical Calculus (MatLab), OOP (Java), Web Scraping and Data Analysis (Python), Algorithms and Data Structures (C).
+  - degree: Research Assistant
+    institution: ILLC, University of Amsterdam
+    icon: hero/academic-cap
+  - degree: Teaching Assistant — BSc Machine Learning
+    institution: Vrije Universiteit Amsterdam
+    icon: hero/academic-cap
 
 experience:
   - role: Research Assistant
@@ -123,13 +114,16 @@ languages:
 awards:
   - title: Lead The Future Mentee
     awarder: Lead The Future
+    date: "2025-01-01"
     summary: Selected as a mentee (acceptance rate <15%) for this leading STEM mentorship non-profit organisation.
     icon: hero/academic-cap
   - title: Graduation with Honours
     awarder: University of Pisa
+    date: "2024-10-01"
     summary: Bachelor of Computer Science, 110/110 cum laude.
     icon: hero/trophy
   - title: Top 5% of Students
     awarder: University of Pisa
+    date: "2024-10-01"
     summary: Among the 5% best students in all three academic years of the BSc.
     icon: hero/star
