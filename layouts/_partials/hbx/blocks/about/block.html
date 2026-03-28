@@ -138,17 +138,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!canvas || !container) return;
     const ctx = canvas.getContext('2d');
 
-    let width, height;
-    function resize() {
-        width = container.offsetWidth;
-        height = container.offsetHeight;
-        canvas.width = width * window.devicePixelRatio;
-        canvas.height = height * window.devicePixelRatio;
-        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-        initNetwork();
-    }
+    // 1. Initialize Offscreen Canvas First
+    let staticCanvas = document.createElement('canvas');
+    let sCtx = staticCanvas.getContext('2d');
 
-    // Network data
+    let width, height;
     let nodes = [];
     let edges = [];
     let signals = [];
@@ -156,6 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const numLayers = 5;
     const nodesPerLayer = 10;
 
+    // 2. Define Core Functions
     function initNetwork() {
         nodes = [];
         edges = [];
@@ -170,7 +165,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 let basePathX = l * layerWidth;
                 let basePathY = (height / nodesPerLayer) * i + (height / nodesPerLayer) / 2;
                 
-                // Add mild jitter for a highly regular graph structure
                 let jitterX = (Math.random() - 0.5) * (layerWidth * 0.3);
                 let jitterY = (Math.random() - 0.5) * (height / nodesPerLayer * 0.6);
                 
@@ -183,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
             nodes.push(layerNodes);
         }
 
-        // Create edges (Fully connected graph)
+        // Create edges
         for (let l = 0; l < numLayers - 1; l++) {
             for (let n1 of nodes[l]) {
                 for (let n2 of nodes[l + 1]) {
@@ -195,10 +189,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function buildStaticCanvas() {
+        staticCanvas.width = canvas.width;
+        staticCanvas.height = canvas.height;
+        sCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+        const isDark = document.documentElement.classList.contains('dark');
+        const edgeColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.06)';
+        const nodeColor = isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.3)';
+
+        // Draw edges to static canvas
+        sCtx.strokeStyle = edgeColor;
+        sCtx.lineWidth = 1;
+        sCtx.beginPath();
+        for (let edge of edges) {
+            sCtx.moveTo(edge.from.x, edge.from.y);
+            sCtx.lineTo(edge.to.x, edge.to.y);
+        }
+        sCtx.stroke();
+
+        // Draw nodes to static canvas
+        sCtx.fillStyle = nodeColor;
+        for (let l = 0; l < nodes.length; l++) {
+            for (let n of nodes[l]) {
+                sCtx.beginPath();
+                sCtx.arc(n.x, n.y, 2, 0, Math.PI * 2);
+                sCtx.fill();
+            }
+        }
+    }
+
+    // 3. Define Resize (Only Once!)
+    function resize() {
+        width = container.offsetWidth;
+        height = container.offsetHeight;
+        canvas.width = width * window.devicePixelRatio;
+        canvas.height = height * window.devicePixelRatio;
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        
+        initNetwork();
+        buildStaticCanvas();
+    }
+
+    // 4. Kickstart the layout
     window.addEventListener('resize', resize);
     resize();
 
-    // Interaction
+    // 5. Interaction & Hover Effects
     let mouse = { x: -1000, y: -1000 };
     container.addEventListener('mousemove', (e) => {
         const rect = canvas.getBoundingClientRect();
@@ -209,9 +246,8 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let n of nodes[l]) {
                 const dist = Math.hypot(n.x - mouse.x, n.y - mouse.y);
                 const now = Date.now();
-                // Extremely highly precise hover strictly requiring direct passing over the core of the specific node.
                 if (dist < 15 && (!n.lastTriggered || now - n.lastTriggered > 3000)) {
-                    n.lastTriggered = now; // Lock node to prevent rapid re-triggering
+                    n.lastTriggered = now;
                     const color = '#ff7b00';
                     triggerSignals(n, color, 1.0);
                 }
@@ -223,29 +259,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (power <= 0 || node.outgoingEdges.length === 0) return;
         
         let shuffledEdges = [...node.outgoingEdges].sort(() => 0.5 - Math.random());
-        
         let N = shuffledEdges.length;
         let numToFire;
 
         if (N <= 1) {
             numToFire = N;
         } else {
-            // Compute exponential decay weights for k = 2, 3, ..., N edges
-            // lambda ≈ 0.9 gives p(k=2) ≈ 0.60 for typical layer sizes
             const lambda = 0.9;
             let weights = [];
             for (let k = 2; k <= N; k++) {
                 weights.push(Math.exp(-lambda * (k - 2)));
             }
-            // Floor: ensure "fire all" always has >= 10% weight of "fire 2"
-            // so full bursts don't vanish for large N
             weights[weights.length - 1] = Math.max(weights[weights.length - 1], 0.1 * weights[0]);
 
-            // Normalize and sample via CDF
             let wSum = weights.reduce((a, b) => a + b, 0);
             let r = Math.random();
             let cumulative = 0;
-            numToFire = N; // fallback
+            numToFire = N; 
             for (let i = 0; i < weights.length; i++) {
                 cumulative += weights[i] / wSum;
                 if (r <= cumulative) { numToFire = i + 2; break; }
@@ -267,60 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Offscreen canvas for the static network (drawn once, reused every frame)
-    let staticCanvas = document.createElement('canvas');
-    let sCtx = staticCanvas.getContext('2d');
-
-    function buildStaticCanvas() {
-        staticCanvas.width = canvas.width;
-        staticCanvas.height = canvas.height;
-        sCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
-
-        const isDark = document.documentElement.classList.contains('dark');
-        const edgeColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.06)';
-        const nodeColor = isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.3)';
-
-        // Draw all edges in one path
-        sCtx.strokeStyle = edgeColor;
-        sCtx.lineWidth = 1;
-        sCtx.beginPath();
-        for (let edge of edges) {
-            sCtx.moveTo(edge.from.x, edge.from.y);
-            sCtx.lineTo(edge.to.x, edge.to.y);
-        }
-        sCtx.stroke();
-
-        // Draw all nodes
-        sCtx.fillStyle = nodeColor;
-        for (let l = 0; l < nodes.length; l++) {
-            for (let n of nodes[l]) {
-                sCtx.beginPath();
-                sCtx.arc(n.x, n.y, 2, 0, Math.PI * 2);
-                sCtx.fill();
-            }
-        }
-    }
-
-    // Rebuild static canvas whenever the network is reinitialised
-    const _origInitNetwork = initNetwork;
-    function initNetworkAndCache() {
-        _origInitNetwork();
-        buildStaticCanvas();
-    }
-    window.removeEventListener('resize', resize);
-    function resize() {
-        width = container.offsetWidth;
-        height = container.offsetHeight;
-        canvas.width = width * window.devicePixelRatio;
-        canvas.height = height * window.devicePixelRatio;
-        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-        initNetwork();
-        buildStaticCanvas();
-    }
-    window.addEventListener('resize', resize);
-    resize();
-
-    // Animation Loop — capped at 30fps to halve GPU load
+    // 6. Animation Loop
     const TARGET_FPS = 30;
     const FRAME_INTERVAL = 1000 / TARGET_FPS;
     let lastFrameTime = 0;
@@ -328,11 +305,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function draw(timestamp) {
         requestAnimationFrame(draw);
 
-        // Skip frame if not enough time has passed (30fps cap)
         if (timestamp - lastFrameTime < FRAME_INTERVAL) return;
         lastFrameTime = timestamp;
 
-        // Stamp the static background (cheap blit, no re-draw)
+        // Blit static background
         ctx.clearRect(0, 0, width, height);
         ctx.drawImage(staticCanvas, 0, 0, width, height);
 
@@ -358,20 +334,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentX = s.edge.from.x + (s.edge.to.x - s.edge.from.x) * s.progress;
             const currentY = s.edge.from.y + (s.edge.to.y - s.edge.from.y) * s.progress;
 
-            // Cheap double-stroke glow (no shadowBlur)
             ctx.beginPath();
             ctx.moveTo(s.edge.from.x, s.edge.from.y);
             ctx.lineTo(currentX, currentY);
-            // Wide, faint outer glow stroke
+            
             ctx.strokeStyle = `rgba(255, 123, 0, ${s.alpha * 0.3})`;
             ctx.lineWidth = (2 * s.power) + 4;
             ctx.stroke();
-            // Crisp inner stroke
+            
             ctx.strokeStyle = `rgba(255, 123, 0, ${s.alpha})`;
             ctx.lineWidth = 2 * s.power;
             ctx.stroke();
         }
     }
+    
+    // Start animation loop
     requestAnimationFrame(draw);
 });
 </script>
