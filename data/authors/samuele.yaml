@@ -1,0 +1,8 @@
+schema: hugoblox/author/v1
+slug: samuele
+superuser: true
+title: S. Punzo
+name:
+  display: S. Punzo
+  given: Samuele
+  family: Punzo
